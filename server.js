@@ -18,6 +18,7 @@ const productSchema = new mongoose.Schema({
   sizes: [String],
   oldPrice: Number,
   newPrice: Number,
+  sezon: String,
   rating: Number,
   category: String,
   brand: String,
