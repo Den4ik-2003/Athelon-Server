@@ -48,10 +48,13 @@ const orderSchema = new mongoose.Schema({
   },
   customer: {
     name: String,
+    surname: String,
+    patronymic: String,
     phone: String,
-    email: String
+    mail: String
   },
-  address: String,
+  city: String,
+  department: String,
   createdAt: { type: Date, default: Date.now }
 })
 
@@ -68,7 +71,32 @@ app.get("/api/products", async (req, res) => {
 
 app.post("/api/orders", async (req, res) => {
   try {
-    const order = new Order(req.body)
+    const {
+      items,
+      total,
+      name,
+      surname,
+      patronymic,
+      phone,
+      mail,
+      city,
+      department
+    } = req.body
+
+    const order = new Order({
+      items,
+      total,
+      customer: {
+        name,
+        surname,
+        patronymic,
+        phone,
+        mail
+      },
+      city,
+      department
+    })
+
     await order.save()
     res.status(201).json(order)
   } catch (err) {
