@@ -29,6 +29,34 @@ const productSchema = new mongoose.Schema({
 
 const Product = mongoose.model("Product", productSchema)
 
+const orderSchema = new mongoose.Schema({
+  items: [
+    {
+      id: Number,
+      name: String,
+      price: Number,
+      size: String,
+      quantity: Number,
+      image: String
+    }
+  ],
+  total: Number,
+  status: {
+    type: String,
+    enum: ["новий", "в обробці", "відправлено", "доставлено", "скасовано"],
+    default: "новий"
+  },
+  customer: {
+    name: String,
+    phone: String,
+    email: String
+  },
+  address: String,
+  createdAt: { type: Date, default: Date.now }
+})
+
+const Order = mongoose.model("Order", orderSchema)
+
 app.get("/", (req, res) => {
   res.send("Server is running")
 })
@@ -36,6 +64,59 @@ app.get("/", (req, res) => {
 app.get("/api/products", async (req, res) => {
   const products = await Product.find()
   res.json(products)
+})
+
+app.post("/api/orders", async (req, res) => {
+  try {
+    const order = new Order(req.body)
+    await order.save()
+    res.status(201).json(order)
+  } catch (err) {
+    res.status(400).json({ error: "Не вдалося створити замовлення" })
+  }
+})
+
+app.get("/api/orders", async (req, res) => {
+  try {
+    const orders = await Order.find().sort({ createdAt: -1 })
+    res.json(orders)
+  } catch (err) {
+    res.status(500).json({ error: "Помилка сервера" })
+  }
+})
+
+app.get("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+    if (!order) return res.status(404).json({ error: "Замовлення не знайдено" })
+    res.json(order)
+  } catch (err) {
+    res.status(400).json({ error: "Невірний ідентифікатор" })
+  }
+})
+
+app.patch("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { status: req.body.status },
+      { new: true }
+    )
+    if (!order) return res.status(404).json({ error: "Замовлення не знайдено" })
+    res.json(order)
+  } catch (err) {
+    res.status(400).json({ error: "Не вдалося оновити замовлення" })
+  }
+})
+
+app.delete("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id)
+    if (!order) return res.status(404).json({ error: "Замовлення не знайдено" })
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: "Помилка сервера" })
+  }
 })
 
 const PORT = process.env.PORT || 5001
