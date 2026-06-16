@@ -22,7 +22,7 @@ const upload = multer({ dest: "tmp/" });
 
 mongoose
   .connect(
-    "mongodb+srv://admin:12Sm8O43@athelon.n4ntkjl.mongodb.net/?appName=Athelon",
+    "mongodb+srv://admin:12Sm8O43@athelon.n4ntkjl.mongodb.net/AthelonDB?appName=Athelon",
   )
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error(err));
