@@ -15,13 +15,15 @@ app.use(express.json());
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 const upload = multer({ dest: "tmp/" });
 
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(
+    "mongodb+srv://admin:12Sm8O43@athelon.n4ntkjl.mongodb.net/?appName=Athelon",
+  )
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error(err));
 
@@ -39,7 +41,7 @@ const productSchema = new mongoose.Schema({
   brand: String,
   images: [String],
   inStock: Number,
-  reviews: Array
+  reviews: Array,
 });
 
 const Product = mongoose.model("Product", productSchema);
@@ -52,25 +54,25 @@ const orderSchema = new mongoose.Schema({
       price: Number,
       size: String,
       quantity: Number,
-      image: String
-    }
+      image: String,
+    },
   ],
   total: Number,
   status: {
     type: String,
     enum: ["новий", "в обробці", "відправлено", "доставлено", "скасовано"],
-    default: "новий"
+    default: "новий",
   },
   customer: {
     name: String,
     surname: String,
     patronymic: String,
     phone: String,
-    mail: String
+    mail: String,
   },
   city: String,
   department: String,
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
 const Order = mongoose.model("Order", orderSchema);
@@ -82,7 +84,7 @@ app.get("/", (req, res) => {
 app.post("/api/uploadImage", upload.single("image"), async (req, res) => {
   try {
     const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "products"
+      folder: "products",
     });
     fs.unlinkSync(req.file.path);
     res.json({ url: result.secure_url });
@@ -142,13 +144,23 @@ app.delete("/api/products/:id", async (req, res) => {
 
 app.post("/api/orders", async (req, res) => {
   try {
-    const { items, total, name, surname, patronymic, phone, mail, city, department } = req.body;
+    const {
+      items,
+      total,
+      name,
+      surname,
+      patronymic,
+      phone,
+      mail,
+      city,
+      department,
+    } = req.body;
     const order = new Order({
       items,
       total,
       customer: { name, surname, patronymic, phone, mail },
       city,
-      department
+      department,
     });
     await order.save();
     res.status(201).json(order);
@@ -169,7 +181,8 @@ app.get("/api/orders", async (req, res) => {
 app.get("/api/orders/:id", async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: "Замовлення не знайдено" });
+    if (!order)
+      return res.status(404).json({ error: "Замовлення не знайдено" });
     res.json(order);
   } catch (err) {
     res.status(400).json({ error: "Невірний ідентифікатор" });
@@ -181,9 +194,10 @@ app.patch("/api/orders/:id", async (req, res) => {
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { status: req.body.status },
-      { new: true }
+      { new: true },
     );
-    if (!order) return res.status(404).json({ error: "Замовлення не знайдено" });
+    if (!order)
+      return res.status(404).json({ error: "Замовлення не знайдено" });
     res.json(order);
   } catch (err) {
     res.status(400).json({ error: "Не вдалося оновити замовлення" });
@@ -193,7 +207,8 @@ app.patch("/api/orders/:id", async (req, res) => {
 app.delete("/api/orders/:id", async (req, res) => {
   try {
     const order = await Order.findByIdAndDelete(req.params.id);
-    if (!order) return res.status(404).json({ error: "Замовлення не знайдено" });
+    if (!order)
+      return res.status(404).json({ error: "Замовлення не знайдено" });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: "Помилка сервера" });
