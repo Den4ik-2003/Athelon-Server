@@ -69,30 +69,36 @@ app.get("/api/products", async (req, res) => {
   res.json(products)
 })
 
+app.patch("/api/products/:id/stock", async (req, res) => {
+  try {
+    const { quantity } = req.body
+    const productId = Number(req.params.id)
+
+    const product = await Product.findOne({ id: productId })
+
+    if (!product) return res.status(404).json({ error: "Товар не знайдений" })
+
+    if (product.inStock < quantity) {
+      return res.status(400).json({ error: "Недостатньо товару на складі" })
+    }
+
+    product.inStock -= quantity
+    await product.save()
+
+    res.json({ success: true, inStock: product.inStock })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 app.post("/api/orders", async (req, res) => {
   try {
-    const {
-      items,
-      total,
-      name,
-      surname,
-      patronymic,
-      phone,
-      mail,
-      city,
-      department
-    } = req.body
+    const { items, total, name, surname, patronymic, phone, mail, city, department } = req.body
 
     const order = new Order({
       items,
       total,
-      customer: {
-        name,
-        surname,
-        patronymic,
-        phone,
-        mail
-      },
+      customer: { name, surname, patronymic, phone, mail },
       city,
       department
     })
