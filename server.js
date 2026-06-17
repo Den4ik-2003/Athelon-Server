@@ -38,7 +38,8 @@ const productSchema = new mongoose.Schema({
   brand: String,
   images: [String],
   inStock: Number,       
-  available: Boolean,     
+  available: Boolean,  
+  isNew: { type: Boolean, default: false },   
 });
 
 const Product = mongoose.model("Product", productSchema);
