@@ -21,27 +21,24 @@ cloudinary.config({
 const upload = multer({ dest: "tmp/" });
 
 mongoose
-  .connect(
-    "mongodb+srv://admin:12Sm8O43@athelon.n4ntkjl.mongodb.net/AthelonDB?appName=Athelon",
-  )
+  .connect("mongodb+srv://admin:12Sm8O43@athelon.n4ntkjl.mongodb.net/AthelonDB?appName=Athelon")
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error(err));
 
 const productSchema = new mongoose.Schema({
   id: Number,
   name: String,
+  color: String,
   description: String,
-  team: String,
-  sizes: [String],
   oldPrice: Number,
   newPrice: Number,
-  sezon: String,
+  sizes: [String],
   rating: Number,
   category: String,
   brand: String,
   images: [String],
-  inStock: Number,
-  reviews: Array,
+  inStock: Number,       
+  available: Boolean,     
 });
 
 const Product = mongoose.model("Product", productSchema);
@@ -53,6 +50,7 @@ const orderSchema = new mongoose.Schema({
       name: String,
       price: Number,
       size: String,
+      color: String,
       quantity: Number,
       image: String,
     },
@@ -66,7 +64,6 @@ const orderSchema = new mongoose.Schema({
   customer: {
     name: String,
     surname: String,
-    patronymic: String,
     phone: String,
     mail: String,
   },
@@ -76,6 +73,7 @@ const orderSchema = new mongoose.Schema({
 });
 
 const Order = mongoose.model("Order", orderSchema);
+
 
 app.get("/", (req, res) => {
   res.send("Server is running");
@@ -92,6 +90,7 @@ app.post("/api/uploadImage", upload.single("image"), async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
 
 app.get("/api/products", async (req, res) => {
   const products = await Product.find();
@@ -120,14 +119,15 @@ app.put("/api/products/:id", async (req, res) => {
 app.patch("/api/products/:id/stock", async (req, res) => {
   try {
     const { quantity } = req.body;
-    const productId = Number(req.params.id);
-    const product = await Product.findOne({ id: productId });
+    const product = await Product.findOne({ id: Number(req.params.id) });
     if (!product) return res.status(404).json({ error: "Товар не знайдений" });
     if (product.inStock < quantity)
       return res.status(400).json({ error: "Недостатньо товару на складі" });
+
     product.inStock -= quantity;
+    product.available = product.inStock > 0; // автоматично оновлює наявність
     await product.save();
-    res.json({ success: true, inStock: product.inStock });
+    res.json({ success: true, inStock: product.inStock, available: product.available });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -144,21 +144,11 @@ app.delete("/api/products/:id", async (req, res) => {
 
 app.post("/api/orders", async (req, res) => {
   try {
-    const {
-      items,
-      total,
-      name,
-      surname,
-      patronymic,
-      phone,
-      mail,
-      city,
-      department,
-    } = req.body;
+    const { items, total, name, surname, phone, mail, city, department } = req.body;
     const order = new Order({
       items,
       total,
-      customer: { name, surname, patronymic, phone, mail },
+      customer: { name, surname, phone, mail },
       city,
       department,
     });
@@ -181,8 +171,7 @@ app.get("/api/orders", async (req, res) => {
 app.get("/api/orders/:id", async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-    if (!order)
-      return res.status(404).json({ error: "Замовлення не знайдено" });
+    if (!order) return res.status(404).json({ error: "Замовлення не знайдено" });
     res.json(order);
   } catch (err) {
     res.status(400).json({ error: "Невірний ідентифікатор" });
@@ -194,10 +183,9 @@ app.patch("/api/orders/:id", async (req, res) => {
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { status: req.body.status },
-      { new: true },
+      { new: true }
     );
-    if (!order)
-      return res.status(404).json({ error: "Замовлення не знайдено" });
+    if (!order) return res.status(404).json({ error: "Замовлення не знайдено" });
     res.json(order);
   } catch (err) {
     res.status(400).json({ error: "Не вдалося оновити замовлення" });
@@ -207,8 +195,7 @@ app.patch("/api/orders/:id", async (req, res) => {
 app.delete("/api/orders/:id", async (req, res) => {
   try {
     const order = await Order.findByIdAndDelete(req.params.id);
-    if (!order)
-      return res.status(404).json({ error: "Замовлення не знайдено" });
+    if (!order) return res.status(404).json({ error: "Замовлення не знайдено" });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: "Помилка сервера" });
