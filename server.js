@@ -1,3 +1,5 @@
+
+
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -21,9 +23,17 @@ cloudinary.config({
 const upload = multer({ dest: "tmp/" });
 
 mongoose
-  .connect("mongodb+srv://admin:12Sm8O43@athelon.n4ntkjl.mongodb.net/AthelonDB?appName=Athelon")
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error(err));
+
+const commentSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  avatar: String,
+  text: String,
+  createdAt: { type: Date, default: Date.now },
+});
 
 const productSchema = new mongoose.Schema({
   id: Number,
@@ -37,9 +47,10 @@ const productSchema = new mongoose.Schema({
   category: String,
   brand: String,
   images: [String],
-  inStock: Number,       
-  available: Boolean,  
-  isNew: { type: Boolean, default: false },   
+  inStock: Number,
+  available: Boolean,
+  isNew: { type: Boolean, default: false },
+  comments: { type: [commentSchema], default: [] },
 });
 
 const Product = mongoose.model("Product", productSchema);
@@ -140,6 +151,58 @@ app.delete("/api/products/:id", async (req, res) => {
     res.json({ status: "ok" });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+/* ── Comments (відгуки) ── */
+
+app.get("/api/products/:id/comments", async (req, res) => {
+  try {
+    const product = await Product.findOne({ id: Number(req.params.id) });
+    if (!product) return res.status(404).json({ error: "Товар не знайдений" });
+    res.json(product.comments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/products/:id/comments", async (req, res) => {
+  try {
+    const { name, rating, avatar, text } = req.body;
+
+    if (!name || !rating) {
+      return res.status(400).json({ error: "Поля name і rating обов'язкові" });
+    }
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "rating має бути від 1 до 5" });
+    }
+
+    const product = await Product.findOne({ id: Number(req.params.id) });
+    if (!product) return res.status(404).json({ error: "Товар не знайдений" });
+
+    const comment = { name, rating, avatar, text, createdAt: new Date() };
+    product.comments.push(comment);
+    await product.save();
+
+    res.status(201).json(product.comments[product.comments.length - 1]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/products/:id/comments/:commentId", async (req, res) => {
+  try {
+    const product = await Product.findOne({ id: Number(req.params.id) });
+    if (!product) return res.status(404).json({ error: "Товар не знайдений" });
+
+    product.comments = product.comments.filter(
+      (c) => c._id.toString() !== req.params.commentId
+    );
+    await product.save();
+
+    res.json({ success: true, comments: product.comments });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
