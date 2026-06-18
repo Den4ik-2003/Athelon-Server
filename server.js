@@ -43,20 +43,24 @@ const productSchema = new mongoose.Schema({
   isNew: { type: Boolean, default: false },
 
   createdAt: {
-    type: String,
-    default: () => {
-      const now = new Date();
+  type: String,
+  default: () => {
+    const now = new Date();
 
-      const day = String(now.getDate()).padStart(2, "0");
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const year = now.getFullYear();
+    const kyivDate = new Date(
+      now.toLocaleString("en-US", { timeZone: "Europe/Kyiv" })
+    );
 
-      const hours = String(now.getHours()).padStart(2, "0");
-      const minutes = String(now.getMinutes()).padStart(2, "0");
+    const day = String(kyivDate.getDate()).padStart(2, "0");
+    const month = String(kyivDate.getMonth() + 1).padStart(2, "0");
+    const year = kyivDate.getFullYear();
 
-      return `${day}.${month}.${year} ${hours}:${minutes}`;
-    },
+    const hours = String(kyivDate.getHours()).padStart(2, "0");
+    const minutes = String(kyivDate.getMinutes()).padStart(2, "0");
+
+    return `${day}.${month}.${year} ${hours}:${minutes}`;
   },
+},
 });
 
 const Product = mongoose.model("Product", productSchema);
