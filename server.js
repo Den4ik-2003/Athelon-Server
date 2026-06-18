@@ -25,7 +25,6 @@ mongoose
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error(err));
 
-/* ── Schemas ── */
 
 const productSchema = new mongoose.Schema({
   id: Number,
@@ -42,11 +41,26 @@ const productSchema = new mongoose.Schema({
   inStock: Number,
   available: Boolean,
   isNew: { type: Boolean, default: false },
+
+  createdAt: {
+    type: String,
+    default: () => {
+      const now = new Date();
+
+      const day = String(now.getDate()).padStart(2, "0");
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const year = now.getFullYear();
+
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+
+      return `${day}.${month}.${year} ${hours}:${minutes}`;
+    },
+  },
 });
 
 const Product = mongoose.model("Product", productSchema);
 
-// Окрема колекція для коментарів
 const commentSchema = new mongoose.Schema({
   productId: { type: Number, required: true },
   authorName: { type: String, required: true },
@@ -89,7 +103,6 @@ const orderSchema = new mongoose.Schema({
 
 const Order = mongoose.model("Order", orderSchema);
 
-/* ── Routes ── */
 
 app.get("/", (req, res) => {
   res.send("Server is running");
@@ -106,8 +119,6 @@ app.post("/api/uploadImage", upload.single("image"), async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
-
-/* ── Products ── */
 
 app.get("/api/products", async (req, res) => {
   const products = await Product.find();
@@ -161,9 +172,6 @@ app.delete("/api/products/:id", async (req, res) => {
   }
 });
 
-/* ── Comments ── */
-
-// GET /api/comments?productId=5  →  всі коментарі товару
 app.get("/api/comments", async (req, res) => {
   try {
     const filter = {};
@@ -175,7 +183,6 @@ app.get("/api/comments", async (req, res) => {
   }
 });
 
-// POST /api/comments  →  створити коментар
 app.post("/api/comments", async (req, res) => {
   try {
     const { productId, authorName, rating, avatar, text } = req.body;
@@ -197,7 +204,6 @@ app.post("/api/comments", async (req, res) => {
   }
 });
 
-// DELETE /api/comments/:id  →  видалити коментар по його _id
 app.delete("/api/comments/:id", async (req, res) => {
   try {
     const comment = await Comment.findByIdAndDelete(req.params.id);
@@ -207,8 +213,6 @@ app.delete("/api/comments/:id", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-/* ── Orders ── */
 
 app.post("/api/orders", async (req, res) => {
   try {
