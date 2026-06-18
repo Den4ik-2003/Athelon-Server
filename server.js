@@ -1,5 +1,3 @@
-
-
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -27,13 +25,7 @@ mongoose
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error(err));
 
-const commentSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  rating: { type: Number, required: true, min: 1, max: 5 },
-  avatar: String,
-  text: String,
-  createdAt: { type: Date, default: Date.now },
-});
+/* ── Schemas ── */
 
 const productSchema = new mongoose.Schema({
   id: Number,
@@ -50,10 +42,21 @@ const productSchema = new mongoose.Schema({
   inStock: Number,
   available: Boolean,
   isNew: { type: Boolean, default: false },
-  comments: { type: [commentSchema], default: [] },
 });
 
 const Product = mongoose.model("Product", productSchema);
+
+// Окрема колекція для коментарів
+const commentSchema = new mongoose.Schema({
+  productId: { type: Number, required: true },
+  authorName: { type: String, required: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  avatar: { type: String, default: "" },
+  text: { type: String, default: "" },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const Comment = mongoose.model("Comment", commentSchema);
 
 const orderSchema = new mongoose.Schema({
   items: [
@@ -86,6 +89,7 @@ const orderSchema = new mongoose.Schema({
 
 const Order = mongoose.model("Order", orderSchema);
 
+/* ── Routes ── */
 
 app.get("/", (req, res) => {
   res.send("Server is running");
@@ -103,6 +107,7 @@ app.post("/api/uploadImage", upload.single("image"), async (req, res) => {
   }
 });
 
+/* ── Products ── */
 
 app.get("/api/products", async (req, res) => {
   const products = await Product.find();
@@ -137,7 +142,7 @@ app.patch("/api/products/:id/stock", async (req, res) => {
       return res.status(400).json({ error: "Недостатньо товару на складі" });
 
     product.inStock -= quantity;
-    product.available = product.inStock > 0; // автоматично оновлює наявність
+    product.available = product.inStock > 0;
     await product.save();
     res.json({ success: true, inStock: product.inStock, available: product.available });
   } catch (err) {
@@ -148,63 +153,62 @@ app.patch("/api/products/:id/stock", async (req, res) => {
 app.delete("/api/products/:id", async (req, res) => {
   try {
     await Product.deleteOne({ id: Number(req.params.id) });
+    // видаляємо всі коментарі цього товару
+    await Comment.deleteMany({ productId: Number(req.params.id) });
     res.json({ status: "ok" });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-/* ── Comments (відгуки) ── */
+/* ── Comments ── */
 
-app.get("/api/products/:id/comments", async (req, res) => {
+// GET /api/comments?productId=5  →  всі коментарі товару
+app.get("/api/comments", async (req, res) => {
   try {
-    const product = await Product.findOne({ id: Number(req.params.id) });
-    if (!product) return res.status(404).json({ error: "Товар не знайдений" });
-    res.json(product.comments);
+    const filter = {};
+    if (req.query.productId) filter.productId = Number(req.query.productId);
+    const comments = await Comment.find(filter).sort({ createdAt: -1 });
+    res.json(comments);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post("/api/products/:id/comments", async (req, res) => {
+// POST /api/comments  →  створити коментар
+app.post("/api/comments", async (req, res) => {
   try {
-    const { name, rating, avatar, text } = req.body;
+    const { productId, authorName, rating, avatar, text } = req.body;
 
-    if (!name || !rating) {
-      return res.status(400).json({ error: "Поля name і rating обов'язкові" });
+    if (!productId || !authorName || !rating) {
+      return res.status(400).json({ error: "productId, authorName і rating обов'язкові" });
     }
     if (rating < 1 || rating > 5) {
       return res.status(400).json({ error: "rating має бути від 1 до 5" });
     }
 
-    const product = await Product.findOne({ id: Number(req.params.id) });
+    const product = await Product.findOne({ id: Number(productId) });
     if (!product) return res.status(404).json({ error: "Товар не знайдений" });
 
-    const comment = { name, rating, avatar, text, createdAt: new Date() };
-    product.comments.push(comment);
-    await product.save();
-
-    res.status(201).json(product.comments[product.comments.length - 1]);
+    const comment = await Comment.create({ productId: Number(productId), authorName, rating, avatar: avatar || "", text: text || "" });
+    res.status(201).json(comment);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete("/api/products/:id/comments/:commentId", async (req, res) => {
+// DELETE /api/comments/:id  →  видалити коментар по його _id
+app.delete("/api/comments/:id", async (req, res) => {
   try {
-    const product = await Product.findOne({ id: Number(req.params.id) });
-    if (!product) return res.status(404).json({ error: "Товар не знайдений" });
-
-    product.comments = product.comments.filter(
-      (c) => c._id.toString() !== req.params.commentId
-    );
-    await product.save();
-
-    res.json({ success: true, comments: product.comments });
+    const comment = await Comment.findByIdAndDelete(req.params.id);
+    if (!comment) return res.status(404).json({ error: "Коментар не знайдений" });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+/* ── Orders ── */
 
 app.post("/api/orders", async (req, res) => {
   try {
