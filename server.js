@@ -125,8 +125,15 @@ app.post("/api/uploadImage", upload.single("image"), async (req, res) => {
 });
 
 app.get("/api/products", async (req, res) => {
-  const products = await Product.find();
-  res.json(products);
+  try {
+    const products = await Product.find();
+    res.json(products);
+  } catch (err) {
+    console.error("PRODUCTS ERROR:", err);
+    res.status(500).json({
+      error: err.message,
+    });
+  }
 });
 
 app.post("/api/products", async (req, res) => {
@@ -189,22 +196,36 @@ app.get("/api/comments", async (req, res) => {
 
 app.post("/api/comments", async (req, res) => {
   try {
+    console.log(req.body);
+
     const { productId, authorName, rating, avatar, text } = req.body;
 
-    if (!productId || !authorName || !rating) {
-      return res.status(400).json({ error: "productId, authorName і rating обов'язкові" });
-    }
-    if (rating < 1 || rating > 5) {
-      return res.status(400).json({ error: "rating має бути від 1 до 5" });
+    const product = await Product.findOne({
+      id: Number(productId),
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        error: "Товар не знайдений",
+      });
     }
 
-    const product = await Product.findOne({ id: Number(productId) });
-    if (!product) return res.status(404).json({ error: "Товар не знайдений" });
+    const comment = await Comment.create({
+      productId: Number(productId),
+      authorName,
+      rating,
+      avatar,
+      text,
+    });
 
-    const comment = await Comment.create({ productId: Number(productId), authorName, rating, avatar: avatar || "", text: text || "" });
     res.status(201).json(comment);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("COMMENT ERROR:", err);
+
+    res.status(500).json({
+      error: err.message,
+      stack: err.stack,
+    });
   }
 });
 
