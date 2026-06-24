@@ -97,6 +97,13 @@ app.get("/", (req, res) => {
   res.send("Server is running");
 });
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: Date.now()
+  });
+});
+
 app.post("/api/uploadImage", upload.single("image"), async (req, res) => {
   try {
     const result = await cloudinary.uploader.upload(req.file.path, {
